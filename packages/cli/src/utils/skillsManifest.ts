@@ -96,7 +96,7 @@ export interface SkillsCheckResult {
   ref: string | null;
 }
 
-const DEFAULT_REPO_SLUG = "heygen-com/hyperframes";
+const DEFAULT_REPO_SLUG = "dr-33-m/hyperframes";
 const REPO_SLUG_PATTERN = /^[\w.-]+\/[\w.-]+$/;
 /** Manifest filename, published at the repo root. */
 export const MANIFEST_FILE = "skills-manifest.json";

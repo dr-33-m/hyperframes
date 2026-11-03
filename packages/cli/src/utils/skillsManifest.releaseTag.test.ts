@@ -30,7 +30,7 @@ vi.mock("node:child_process", () => ({
   ),
 }));
 
-const RAW = "https://raw.githubusercontent.com/heygen-com/hyperframes";
+const RAW = "https://raw.githubusercontent.com/dr-33-m/hyperframes";
 const TAG_URL = `${RAW}/v0.9.2/${MANIFEST_FILE}`;
 
 let root: string;
@@ -60,9 +60,9 @@ beforeEach(() => {
   const skillsDir = join(home, ".claude/skills");
   mkdirSync(join(skillsDir, "hyperframes"), { recursive: true });
   writeFileSync(join(skillsDir, "hyperframes", "SKILL.md"), "# hyperframes at v0.9.2");
-  installed = buildManifest(skillsDir, { source: "heygen-com/hyperframes" });
+  installed = buildManifest(skillsDir, { source: "dr-33-m/hyperframes" });
   onMain = {
-    source: "heygen-com/hyperframes",
+    source: "dr-33-m/hyperframes",
     skills: { hyperframes: { hash: "f".repeat(16), files: 1 } },
   };
   git.fails = false;

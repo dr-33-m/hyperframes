@@ -155,7 +155,7 @@ const PLAIN_SKILL_NAME = /^[a-z0-9][a-z0-9._-]*$/i;
 // Use the full GitHub URL (not the `owner/repo` slug) as the clone source.
 // --full-depth (see GLOBAL_INSTALL_ARGS_TAIL) clones it at `#<ref>`: the ref the
 // check read its manifest at (this CLI's release tag), so check and install agree.
-const SOURCES = [{ name: "HyperFrames", url: "https://github.com/heygen-com/hyperframes" }];
+const SOURCES = [{ name: "HyperFrames", url: "https://github.com/dr-33-m/hyperframes" }];
 
 // Fan HyperFrames' own skills out to every other installed agent. Scope by the
 // lock's source attribution (the same attribution the foreign check uses) — NOT by listing
