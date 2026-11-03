@@ -11,18 +11,10 @@ Each look has:
 - `params` (optional) — a deterministic `buildCube` spec used offline (`--local-only`)
   or as a fallback if the `url` download/validation fails.
 
-An entry needs at least one of `url` or `params`; prefer both (CDN url with a params
+An entry needs at least one of `url` or `params`; prefer both (a hosted url with a params
 fallback) so resolution is never blocked on the network.
 
-## Hosting a new look (operators)
+## Adding a new look
 
-1. Generate the `.cube` (e.g. `resolve -t lut --params '{...}'` or a graded export).
-2. Upload it to the public CDN origin bucket:
-
-   ```
-   aws s3 cp <id>.cube s3://heygen-public/luts/<id>.cube
-   ```
-
-   It is then served at `https://static.heygen.ai/luts/<id>.cube` (CloudFront).
-
-3. Add an entry to `index.json` with that `url` (and ideally a `params` fallback).
+1. Write the `params` spec for the look, or generate a `.cube` (e.g. `resolve -t lut --params '{...}'` or a graded export) and host it yourself.
+2. Add an entry to `index.json`: `params` alone works offline; add a `url` to your hosted `.cube` only with `params` as the fallback.

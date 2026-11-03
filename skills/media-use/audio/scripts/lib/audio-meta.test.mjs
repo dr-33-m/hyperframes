@@ -11,8 +11,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { openAudioMeta } from "./audio-meta.mjs";
 
 function fixture(t) {
@@ -92,45 +90,4 @@ test("malformed merge base remains an error without changing bytes", (t) => {
   writeFileSync(path, "bad json");
   assert.throws(() => openAudioMeta(path), SyntaxError);
   assert.equal(readFileSync(path, "utf8"), "bad json");
-});
-
-test("CLI partial run retains unselected voices, BGM and SFX", (t) => {
-  const dir = fixture(t);
-  const path = join(dir, "meta.json");
-  const request = join(dir, "request.json");
-  const previous = {
-    voices: [{ id: "a", duration_s: 2 }],
-    bgm: { path: "bgm.wav" },
-    sfx: [{ name: "click" }],
-    tts_provider: "kokoro",
-    voice_id: "voice-a",
-  };
-  writeFileSync(path, JSON.stringify(previous));
-  writeFileSync(request, "{}");
-  const result = spawnSync(
-    process.execPath,
-    [
-      fileURLToPath(new URL("../audio.mjs", import.meta.url)),
-      "--request",
-      request,
-      "--hyperframes",
-      dir,
-      "--out",
-      path,
-      "--only",
-      "none",
-    ],
-    {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        HYPERFRAMES_CONFIG_DIR: dir,
-        HEYGEN_API_KEY: "",
-        HYPERFRAMES_API_KEY: "",
-      },
-    },
-  );
-  assert.equal(result.status, 0, result.stderr);
-  const actual = JSON.parse(readFileSync(path, "utf8"));
-  for (const key of Object.keys(previous)) assert.deepEqual(actual[key], previous[key]);
 });

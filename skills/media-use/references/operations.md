@@ -6,11 +6,8 @@ command. Instead it points you at the right local tool (decision OP1). Run the
 tool, then register the output with `resolve --from <output> --type <type>` so the
 result lands in the ledger and the global cache like any other asset.
 
-The ffmpeg and local-model operations below run locally. Direct `heygen` recipes
-use the HeyGen CLI's own login and HeyGen/API billing; they do not inherit a
-HyperFrames subscription. Use those recipes only when that separate payer was
-selected. `hyperframes media-use resolve` uses the HyperFrames-selected credential.
-ffmpeg is assumed present (it backs the engine already).
+The ffmpeg and local-model operations below run locally and are free. ffmpeg is
+assumed present (it backs the engine already).
 
 ## Cut / trim: keep a slice
 
@@ -46,27 +43,19 @@ auto-editor in.mp4 --edit audio:threshold=4% -o tight.mp4   # pip install auto-e
 scenedetect -i in.mp4 detect-adaptive list-scenes           # pip install scenedetect
 ```
 
-## Transforms with a quality choice (process)
+## Transforms (process)
 
-These have a local option AND a higher-quality HeyGen option. Run the local
-one for free/offline; use HeyGen when quality matters: `media-use generate` on the
-sign-in alone, the rest through the `heygen` CLI. Showing the user a
-**side-by-side** (local vs HeyGen) is the honest way to let them choose.
+These run locally and are free.
 
-| Op                      | Local (free)                                       | HeyGen (quality)                                                                 |
-| ----------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Background removal      | `hyperframes remove-background in.png` (u2net)     | `hyperframes media-use generate --type cutout --video in.mp4`; stills stay local |
-| Upscale                 | `realesrgan-ncnn-vulkan -i in.png -o out.png -s 4` | n/a                                                                              |
-| Lipsync (dub)           | n/a                                                | `hyperframes media-use generate --type lipsync`                                  |
-| Translate               | n/a                                                | `heygen video-translate`                                                         |
-| Clone a voice           | n/a                                                | `heygen voice clone create`                                                      |
-| Text to video           | n/a                                                | `heygen video-agent create`                                                      |
-| Clips from a long video | n/a                                                | `heygen ai-clipping`                                                             |
+| Op                 | Local (free)                                       |
+| ------------------ | -------------------------------------------------- |
+| Background removal | `hyperframes remove-background in.png` (u2net)     |
+| Upscale            | `realesrgan-ncnn-vulkan -i in.png -o out.png -s 4` |
 
 After any op: `resolve --from out.ext --type <type>` to register the derived
 asset (it records provenance and auto-promotes to the global cache).
 
-> ponytail: media-use doesn't re-wrap ffmpeg/heygen here, that's deliberate
+> ponytail: media-use doesn't re-wrap ffmpeg here, that's deliberate
 > (OP1). The value it adds is the ledger + global reuse on the _output_, via
 > `--from`. Add a thin `process` verb only if agents repeatedly fumble these
 > recipes.
@@ -215,8 +204,7 @@ ffmpeg -i mix.wav \
 
 ## Generate: images (local first, cloud upsell)
 
-`resolve --type image` retrieves from the HeyGen catalog first; on a miss it
-GENERATES. Two paths, best-for-the-machine picked automatically:
+`resolve --type image` generates the image. Two paths, best-for-the-machine picked automatically:
 
 1. **Local (default, free, private): mflux** (FLUX-on-MLX). `resolve` spec-checks
    AVAILABLE RAM and runs the best FLUX-class model that fits, using the
@@ -242,88 +230,13 @@ GENERATES. Two paths, best-for-the-machine picked automatically:
 
 `--local-only` keeps mflux (once cached) and skips codex (network).
 
-## Generate: video (`resolve --type video`, HeyGen avatar first)
+## Generate: video (`resolve --type video`)
 
-`resolve --type video "<intent>"` is the default path. It generates a
-script-driven HeyGen avatar video first using the HyperFrames-selected credential
-(the server decides eligibility and charges; explicit API keys use API billing), falling back to local generative LTX only when
-HeyGen is unavailable, uncredentialed, or `--local-only` is passed. The two
-are non-substitutable outputs (a real presenter vs. a generic generative
-clip), so treat the fallback as "HeyGen wasn't reachable," not "upgrade the
-quality":
-
-- **HeyGen avatar video (default):**
-  The CLI-bundled provider shells the
-  `heygen` CLI — never the raw API — auto-picking a public avatar and a
-  starfish voice (override with `--avatar-id`/`--voice-id`, threaded through
-  as `ctx.avatarId`/`ctx.voiceId`). If the CLI reports `not_authenticated`,
-  the provider prints a HyperFrames sign-in recommendation to stderr and falls through to LTX instead of
-  hard-failing.
-- **Local fallback: LTX 2.3 on MLX** via `dgrauet/ltx-2-mlx`, the `videogen`
-  ladder bundled in the HyperFrames CLI. Generative clips
-  (t2v), spec-gated to RAM. Verified on 24GB: 512x320 x 33f with audio.
-
-Every generating `heygen` call from media-use — TTS, avatar video, and
-catalog search — sends the allowlisted `X-HeyGen-Client-Source: media-use`
-header (persistent flag, works on every subcommand) via the shared
-CLI-internal `HEYGEN_CLIENT_SOURCE_ARGV` constant, so usage
-tags correctly in billing/resource meta and shows up in the API dashboards.
-Read-only discovery (`avatar list`, `voice list`) doesn't need it.
-
-For structured bodies `resolve --type video` doesn't expose yet (a specific
-`avatar_id`/`voice_id` combination beyond the ctx overrides, or a
-pre-recorded `audio_url` instead of a script), the raw `heygen video create`
-recipe below remains the escape hatch. This direct command uses the separate
-HeyGen CLI credential and HeyGen/API billing, not the HyperFrames subscription:
-
-```bash
-# discover an avatar + a starfish voice, then create + wait
-heygen avatar list --ownership public --limit 5
-heygen voice list --engine starfish --limit 5
-heygen video create --headers "X-HeyGen-Client-Source: media-use" --wait -d '{
-  "type": "avatar",
-  "avatar_id": "<avatar-id>",
-  "script": "Your narration here.",
-  "voice_id": "<voice-id>"
-}'
-```
-
-Avatar videos are deterministic + script-driven (lip-sync from a script or a
-pre-recorded `audio_url`), distinct from the generative LTX clips. After a
-manual recipe renders, `resolve --from <downloaded.mp4> --type video` to
-ledger it (not needed when generating via `resolve --type video` directly —
-that already ledgers the result).
-
-### Image-to-video (animate any still into a talking clip)
-
-Not wired into `resolve --type video` (deferred — the `avatar` type covers
-the default script-driven case). `heygen video create` takes the raw
-`POST /v3/videos` body, so switching `type`
-from `avatar` to `image` animates **any image of a person** into a lip-synced
-talking video, with no avatar/photo-avatar creation step first. Point `image` at a
-public URL or an uploaded `asset_id`, and drive speech with a `script`+`voice_id`
-or a pre-recorded `audio_url`:
-
-```bash
-heygen video create --headers "X-HeyGen-Client-Source: media-use" --wait -d '{
-  "type": "image",
-  "image": { "type": "url", "url": "https://example.com/person.jpg" },
-  "script": "Your narration here.",
-  "voice_id": "<voice-id>"
-}'
-```
-
-Common optional fields: `title`, `resolution` (`4k`/`1080p`/`720p`),
-`aspect_ratio`, `remove_background`, `background`, `voice_settings`,
-`motion_prompt` + `expressiveness` (photo-avatar animation), and
-`callback_url`/`callback_id` for webhooks. Don't hardcode these from memory: the
-CLI self-documents the full, current body with
-`heygen video create --request-schema` (a discriminated union keyed on `type`),
-so read the schema rather than trusting a stale field list. For a still you'll
-reuse across many scripts, create a reusable **Photo Avatar** once instead
-(`heygen avatar create`). Ledger the result with
-`resolve --from <downloaded.mp4> --type video`. Docs:
-<https://developers.heygen.com/image-to-video>.
+`resolve --type video "<intent>"` makes a generic generative clip with local LTX 2.3
+on MLX, via the `videogen` ladder bundled in the HyperFrames CLI. Generative clips
+(t2v), spec-gated to RAM. Verified on 24GB: 512x320 x 33f with audio. It does not
+make a presenter or talking-head video; a person on camera has to come from footage
+the person supplies.
 
 ## HEVC / H.265 sources
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseEnumFlag, parseIntFlag, parseNumericFlag } from "./parsing.js";
+import { parseEnumFlag, parseIntFlag, parseNumericFlag } from "./flagParsing.js";
 import { CliUsageError } from "../utils/commandResult.js";
 
 describe("cloud/parsing", () => {

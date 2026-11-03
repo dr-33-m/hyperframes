@@ -10,20 +10,20 @@ Returns one line: `resolved <id> → <path> (<type>, <metadata>)`
 
 | Type    | What it finds                    | Provider / cascade                                           |
 | ------- | -------------------------------- | ------------------------------------------------------------ |
-| `bgm`   | Background music                 | HeyGen audio catalog (10k+ tracks)                           |
+| `bgm`   | Background music                 | No provider in this build: supply the track with `--from`    |
 | `sfx`   | Sound effects                    | Openverse (CC0 / CC BY), then the bundled 21-file library    |
-| `image` | Photos, backgrounds              | HeyGen asset search (75k+ vectors)                           |
-| `icon`  | Icons, symbols                   | HeyGen asset search (type=icon)                              |
+| `image` | Photos, backgrounds              | Local FLUX (mflux) if installed; codex image upsell          |
+| `icon`  | Icons, symbols                   | No provider in this build: supply the icon with `--from`     |
 | `logo`  | Official brand marks             | theSVG → GitHub org avatar → domain favicon                  |
-| `voice` | TTS voiceover                    | HeyGen TTS free-usage path; optional local Kokoro            |
+| `voice` | TTS voiceover                    | Local Kokoro (free, on-device)                               |
 | `grade` | HyperFrames color-grading blocks | Core preset → look index params/CDN LUT → deterministic cube |
 | `lut`   | Reusable `.cube` LUT files       | Look index params/CDN LUT → deterministic cube               |
 
 ## Examples
 
 ```bash
-# Background music
-npx hyperframes media-use resolve --type bgm --intent "upbeat tech launch" --project .
+# Background music (no provider in this build: ingest a track you supply)
+npx hyperframes media-use resolve --from ./my-track.mp3 --type bgm --project .
 # → resolved bgm_001 → .media/audio/bgm/bgm_001.mp3 (bgm, 25s)
 
 # Sound effect
@@ -64,7 +64,7 @@ npx hyperframes media-use resolve --type lut --intent "teal orange blockbuster" 
 | `--from`        | Freeze a local file or direct public URL (ingest)                                    |
 | `--for`         | Analyze a local image/video and add measured adjust suggestions (`grade` only)       |
 | `--local-only`  | Offline: skip every network provider (cache + local only)                            |
-| `--provider`    | Force one generator (e.g. `codex`, `mflux`, `kokoro`, `heygen`)                      |
+| `--provider`    | Force one generator (e.g. `codex`, `mflux`, `kokoro`)                                |
 | `--adopt`       | Bulk-import existing assets/ into manifest                                           |
 | `--doctor`      | Check local CLI dependencies; no manifest changes                                    |
 | `--stats`       | Print local usage stats from `.media/` and `~/.media`; no manifest changes           |
@@ -76,14 +76,14 @@ npx hyperframes media-use resolve --type lut --intent "teal orange blockbuster" 
 Before resolving bgm/sfx/image/icon/logo/grade/lut, **check what already exists and reuse it when it fits.** media-use does not semantically match for you — you are the judge. It surfaces candidates; you decide.
 
 ```bash
-npx hyperframes media-use resolve --type bgm --intent "upbeat tech launch" --candidates --project .
-#   [project] upbeat tech launch (25s, heygen.audio.sounds)
-#           .media/audio/bgm/bgm_001.wav
-#   [global]  energetic tech intro (22s, heygen.audio.sounds)
+npx hyperframes media-use resolve --type sfx --intent "whoosh" --candidates --project .
+#   [project] whoosh (0.6s, openverse.audio)
+#           .media/audio/sfx/sfx_001.mp3
+#   [global]  soft swoosh transition (0.9s, bundled.sfx)
 #           --reuse 06e052c075fd2b80
 ```
 
-Read the list and judge semantic fit yourself — "upbeat tech launch" ≈ "energetic tech intro" is a call only you can make from the descriptions. Then:
+Read the list and judge semantic fit yourself — "whoosh" ≈ "soft swoosh transition" is a call only you can make from the descriptions. Then:
 
 - **A project candidate fits** → just reference its path in your composition. Nothing else to run.
 - **A global candidate fits** → `resolve --type bgm --reuse <sha>` copies it into this project (self-contained render) and records it.
@@ -100,21 +100,10 @@ The deterministic floor still runs automatically: an identical (case/whitespace-
 1. Check project `.media/manifest.jsonl` for a prompt match (case- and whitespace-insensitive) — auto-reuse
 2. Scan existing `assets/` directory for unregistered files that share a word with the need
 3. Check global cache `~/.media/` for a reusable asset matched on the same normalized prompt — auto-reuse
-4. Search via provider (HeyGen audio catalog, HeyGen asset search), or resolve color locally
+4. Search via provider (Openverse, theSVG, local generators), or resolve color locally
 5. Freeze file to `.media/<type>/`, register in manifest, regenerate `index.md`, auto-promote to `~/.media/`
 
 Steps 1 and 3 are the **deterministic floor**: they only auto-reuse an exact-normalized match, never a fuzzy one. Semantic reuse ("close enough") is the agent's explicit call via [Reuse before you resolve](#reuse-before-you-resolve) — it never happens automatically. The agent gets back **one line**; candidates, scores, provenance stay on disk.
-
-## Stamping provenance when mounting a resolved video
-
-`resolve` never writes composition HTML itself — mounting a `<video>` element
-into a composition is always the agent's own edit. When the mounted video's
-manifest record has `provenance.provider === "heygen.video"` (check
-`.media/manifest.jsonl` or the one-line resolve output for the provider name),
-add `data-media-source="heygen"` to that `<video>` tag. Leave the attribute off
-entirely for every other provider (`ltx.local`, an adopted/local file, etc.) —
-this is not a general provider taxonomy, just the one signal render telemetry
-tracks today.
 
 ## Adopt existing projects
 

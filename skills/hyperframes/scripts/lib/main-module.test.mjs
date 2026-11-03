@@ -14,12 +14,12 @@ test("skill CLIs run when invoked through a symlinked skills dir", () => {
   const dir = mkdtempSync(join(tmpdir(), "skills-link-"));
   try {
     symlinkSync(SKILLS, join(dir, "skills"), "dir");
-    for (const script of ["media-use/audio/scripts/heygen-voice.mjs"]) {
+    for (const script of ["media-use/audio/scripts/carve.mjs"]) {
       const run = spawnSync(process.execPath, [join(dir, "skills", script), "not-a-command"], {
         encoding: "utf8",
       });
       assert.notEqual(run.status, 0, `${script} exited ${run.status} without running its CLI`);
-      assert.match(run.stderr, /usage/, script);
+      assert.match(run.stderr, /unknown flag/, script);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

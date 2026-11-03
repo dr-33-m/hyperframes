@@ -255,8 +255,6 @@ describe("analyzeSignal quality", () => {
         reason: "quality local keeps audio on this machine",
       },
     ]);
-    expect(local.warnings.at(-1)).toContain("--quality best");
-
     const best = await analyzeSignal(tone, { capabilities: ["describe"], quality: "best" }, [
       service,
     ]);

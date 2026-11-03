@@ -16,8 +16,6 @@ import {
 } from "../measure/diff.js";
 import { Fix, formatJson, outDir, parseNumbers, parseRange } from "../measure/media.js";
 import { readSegments } from "../measure/segments.js";
-import { repeated } from "./media-use/generate.js";
-import { parseMask } from "../heygen/generate.js";
 
 export const examples: Example[] = [
   [
@@ -48,13 +46,34 @@ function number(value: unknown, flag: string): number | undefined {
   return n;
 }
 
+function repeated(raw: string[], flag: string): string[] {
+  return raw.flatMap((a, i) =>
+    a === flag && raw[i + 1] !== undefined
+      ? [raw[i + 1]!]
+      : a.startsWith(`${flag}=`)
+        ? [a.slice(flag.length + 1)]
+        : [],
+  );
+}
+
 /** `x,y,w,h` or `x,y,w,h,a-b` in the original's pixels and seconds. */
-function parseDrawn(text: string): ReturnType<typeof parseMask> {
-  try {
-    return parseMask(text);
-  } catch {
+function parseDrawn(text: string): {
+  box: [number, number, number, number];
+  window?: [number, number];
+} {
+  const m =
+    /^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*)?$/.exec(
+      text,
+    );
+  if (!m || Number(m[3]) <= 0 || Number(m[4]) <= 0)
     throw new Fix(`--drawn ${text} is not x,y,w,h[,a-b]`, "--drawn 120,670,485,115,0-2.77");
-  }
+  const box: [number, number, number, number] = [
+    Number(m[1]),
+    Number(m[2]),
+    Number(m[3]),
+    Number(m[4]),
+  ];
+  return m[5] ? { box, window: [Number(m[5]), Number(m[6])] } : { box };
 }
 
 function personLine(p: NonNullable<DiffResult["segments"]>[number]["person"] & object): string {

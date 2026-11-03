@@ -16,7 +16,6 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { appendRecord, findByPrompt, readManifest } from "./lib/manifest.mjs";
 import { regenerateIndex } from "./lib/index-gen.mjs";
 import { getProvider } from "./lib/providers.mjs";
-import { HEYGEN_INSTALL_COMMAND, HEYGEN_UPDATE_COMMAND } from "./lib/heygen-cli.mjs";
 import { freezeLocalFile } from "./lib/freeze.mjs";
 import { cachePut, cacheGet, importFromCache } from "./lib/cache.mjs";
 import { validateCubeFile } from "./lib/cube-validate.mjs";
@@ -283,15 +282,6 @@ test("missing bundled SFX install returns a typed recovery command", () => {
   cleanup();
 });
 
-function writeFakeHeygen(body, exitCode = 0) {
-  const binDir = join(tmp, "bin");
-  mkdirSync(binDir, { recursive: true });
-  const command = join(binDir, "heygen");
-  writeFileSync(command, `#!/bin/sh\n${body}\nexit ${exitCode}\n`);
-  chmodSync(command, 0o755);
-  return binDir;
-}
-
 test("an Openverse rate limit resolves SFX from the bundled library", () => {
   setup();
   const result = spawnResolve(["--type", "sfx", "--intent", "whoosh", "--project", tmp, "--json"], {
@@ -335,70 +325,6 @@ test("explicit local bundled SFX resolution never asks Openverse", () => {
     assert.equal(parsed.advisory, undefined);
     cleanup();
   }
-});
-
-test("music without the HeyGen CLI fails naming it and the host app's own tool", () => {
-  setup();
-  const result = spawnResolve(
-    ["--type", "bgm", "--intent", "calm piano", "--project", tmp, "--json"],
-    {
-      env: { HOME: tmp, PATH: tmp },
-    },
-  );
-  assert.equal(result.status, 1, result.stderr);
-  const parsed = JSON.parse(result.stdout);
-  assert.equal(parsed.ok, false);
-  assert.equal(parsed.code, "heygen_cli_missing");
-  assert.equal(parsed.fix, HEYGEN_INSTALL_COMMAND);
-  assert.match(parsed.error, /needs the heygen CLI, which is not installed/);
-  assert.match(parsed.error, /host app's own music tool/);
-  cleanup();
-});
-
-test("a sound effect nothing matches is a plain miss that never names the HeyGen CLI", async () => {
-  setup();
-  // The local media index answers 404, so the miss never depends on the network.
-  const server = createServer((_req, res) => {
-    res.writeHead(404);
-    res.end();
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  try {
-    const result = await spawnResolveAsync(
-      ["--type", "sfx", "--intent", "dog barking", "--project", tmp, "--json"],
-      {
-        env: {
-          HOME: tmp,
-          PATH: tmp,
-          HYPERFRAMES_REGISTRY: `http://127.0.0.1:${server.address().port}`,
-        },
-        nodeArgs: openverseImport([]),
-      },
-    );
-    assert.equal(result.status, 1, result.stderr);
-    const parsed = JSON.parse(result.stdout);
-    assert.equal(parsed.code, undefined);
-    assert.equal(parsed.error, 'no provider could resolve sfx: "dog barking"');
-  } finally {
-    server.close();
-    cleanup();
-  }
-});
-
-test("music with an outdated HeyGen CLI fails naming the update", () => {
-  setup();
-  const binDir = writeFakeHeygen('echo "heygen v0.1.5 does not support --headers" >&2', 1);
-  const result = spawnResolve(
-    ["--type", "bgm", "--intent", "calm piano", "--project", tmp, "--json"],
-    {
-      env: { HOME: tmp, PATH: binDir },
-    },
-  );
-  assert.equal(result.status, 1, result.stderr);
-  const parsed = JSON.parse(result.stdout);
-  assert.equal(parsed.code, "heygen_cli_outdated");
-  assert.equal(parsed.fix, HEYGEN_UPDATE_COMMAND);
-  cleanup();
 });
 
 test("project manifest hit skips providers", () => {
@@ -453,82 +379,6 @@ test("entity hit matches across icon/image (figma-imported brand marks)", () => 
 
 // --- auth_method provenance (U6) ---
 
-test("manifest hit for an OAuth-credentialed heygen resolve surfaces authMethod: oauth", () => {
-  setup();
-  const record = makeRecord({
-    id: "voice_001",
-    type: "voice",
-    path: ".media/audio/voice/voice_001.wav",
-    provenance: { provider: "heygen.tts", authMethod: "oauth", prompt: "oauth voice" },
-  });
-  appendRecord(tmp, record);
-  const filePath = join(tmp, record.path);
-  mkdirSync(join(filePath, ".."), { recursive: true });
-  writeFileSync(filePath, "cached voice");
-
-  const out = runResolve([
-    "--type",
-    "voice",
-    "--intent",
-    "oauth voice",
-    "--project",
-    tmp,
-    "--json",
-  ]);
-  const parsed = JSON.parse(out.trim());
-  assert.equal(parsed.ok, true);
-  assert.equal(parsed.provenance.authMethod, "oauth");
-  cleanup();
-});
-
-test("manifest hit for an API-key-credentialed heygen resolve surfaces authMethod: api_key", () => {
-  setup();
-  const record = makeRecord({
-    id: "voice_001",
-    type: "voice",
-    path: ".media/audio/voice/voice_001.wav",
-    provenance: { provider: "heygen.tts", authMethod: "api_key", prompt: "api key voice" },
-  });
-  appendRecord(tmp, record);
-  const filePath = join(tmp, record.path);
-  mkdirSync(join(filePath, ".."), { recursive: true });
-  writeFileSync(filePath, "cached voice");
-
-  const out = runResolve([
-    "--type",
-    "voice",
-    "--intent",
-    "api key voice",
-    "--project",
-    tmp,
-    "--json",
-  ]);
-  const parsed = JSON.parse(out.trim());
-  assert.equal(parsed.ok, true);
-  assert.equal(parsed.provenance.authMethod, "api_key");
-  cleanup();
-});
-
-test("manifest hit for a non-heygen provider omits authMethod entirely", () => {
-  setup();
-  const record = makeRecord({
-    id: "logo_001",
-    type: "logo",
-    path: ".media/images/logo_001.svg",
-    provenance: { provider: "thesvg", prompt: "acme logo" },
-  });
-  appendRecord(tmp, record);
-  const filePath = join(tmp, record.path);
-  mkdirSync(join(filePath, ".."), { recursive: true });
-  writeFileSync(filePath, "<svg/>");
-
-  const out = runResolve(["--type", "logo", "--intent", "acme logo", "--project", tmp, "--json"]);
-  const parsed = JSON.parse(out.trim());
-  assert.equal(parsed.ok, true);
-  assert.equal("authMethod" in parsed.provenance, false);
-  cleanup();
-});
-
 // --- global cache hit ---
 
 test("global cache hit copies to project and registers", () => {
@@ -579,43 +429,6 @@ test("freezeLocalFile creates parent dirs and copies", () => {
   assert.ok(existsSync(dest));
   assert.equal(readFileSync(dest, "utf8"), "freeze test data");
   cleanup();
-});
-
-test("failed remote freeze removes its reserved placeholder", async () => {
-  setup();
-  const server = createServer((_req, res) => {
-    res.writeHead(503);
-    res.end("unavailable");
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = server.address().port;
-  const binDir = writeFakeHeygen(
-    `printf '%s\\n' '{"data":[{"id":"asset.jpg","url":"http://127.0.0.1:${port}/asset.jpg"}]}'`,
-  );
-
-  try {
-    const result = await spawnResolveAsync(
-      [
-        "--type",
-        "image",
-        "--intent",
-        "download failure",
-        "--provider",
-        "heygen",
-        "--project",
-        tmp,
-        "--json",
-      ],
-      { env: { HOME: tmp, PATH: binDir } },
-    );
-
-    assert.equal(result.status, 1, result.stderr);
-    assert.deepStrictEqual(readdirSync(join(tmp, ".media/images")), []);
-    assert.deepStrictEqual(readManifest(tmp), []);
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-    cleanup();
-  }
 });
 
 test("failed URL ingest removes its reserved placeholder", () => {
@@ -944,12 +757,10 @@ test("missing required args exits 2", () => {
 
 test("--json returns error JSON on stub provider failure", () => {
   setup();
-  // A HeyGen CLI that finds nothing: the miss is the generic one on every machine, with or without a real CLI.
-  const binDir = writeFakeHeygen(`echo '{"data":[]}'`);
   try {
     runResolve(["--type", "bgm", "--intent", "stub fail", "--project", tmp, "--json"], {
       stdio: "pipe",
-      env: { HOME: tmp, PATH: binDir },
+      env: { HOME: tmp, PATH: process.env.PATH },
     });
     assert.fail("should have exited");
   } catch (err) {
@@ -970,15 +781,7 @@ test("--doctor --json reports dependency checks and top-level ok requires ffmpeg
   const parsed = JSON.parse(result.stdout.trim());
   assert.ok(Array.isArray(parsed.checks));
 
-  const expected = [
-    "bundled SFX assets",
-    "heygen on PATH",
-    "heygen version",
-    "heygen authenticated",
-    "ffmpeg on PATH",
-    "ffprobe on PATH",
-    "node version",
-  ];
+  const expected = ["bundled SFX assets", "ffmpeg on PATH", "ffprobe on PATH", "node version"];
   const byName = new Map(parsed.checks.map((check) => [check.name, check]));
   for (const name of expected) {
     assert.ok(byName.has(name), `missing check: ${name}`);
@@ -1477,8 +1280,6 @@ test("track() posts to MEDIA_USE_TELEMETRY_HOST when set, proving real intercept
 // case names a provider the registry declares at a different tier and asserts the
 // tier that actually reaches the wire.
 for (const [provider, type, expected] of [
-  ["heygen.tts", "voice", "network_paid"],
-  ["heygen.audio.sounds", "bgm", "network_free"],
   ["openverse.audio", "sfx", "network_free"],
   ["bundled.sfx", "sfx", "local"],
 ]) {
@@ -1496,15 +1297,7 @@ for (const [provider, type, expected] of [
         expected,
         `${provider} must reach the wire as ${expected}`,
       );
-      // The tier is derived from the registry and the auth method from the
-      // credential state; they must not become entangled. A non-heygen provider
-      // carries a tier and no auth method, whatever credentials exist locally.
-      if (!provider.startsWith("heygen."))
-        assert.equal(
-          event.properties.auth_method,
-          undefined,
-          "a non-heygen provider must carry a tier without an auth method",
-        );
+      assert.equal(event.properties.auth_method, undefined);
     } finally {
       cleanup();
     }

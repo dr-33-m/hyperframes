@@ -1,6 +1,5 @@
 import { existsSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
-import { transcribeWithHeygen } from "../heygen/transcribe.js";
 import { normalizeErrorMessage } from "../utils/errorMessage.js";
 import {
   createRenderCancellationScope,
@@ -39,7 +38,7 @@ import {
 // finishing even on the fastest hardware for the shortest clip.
 export const MIN_TIMEOUT_MS = 5000;
 
-export type TranscribeEngine = "auto" | "parakeet" | "whisper" | "heygen";
+export type TranscribeEngine = "auto" | "parakeet" | "whisper";
 export type CaptionFormat = "srt" | "vtt";
 /** The program that does the work: Parakeet runs on sherpa-onnx or parakeet-mlx. */
 export type TranscribeRunner = ParakeetRunner | "whisper";
@@ -70,10 +69,8 @@ export interface TranscribeOptions {
   input: string;
   /** Where transcript.json goes; caption scripts in this folder's .html files are patched. Default: the input's folder. */
   dir?: string;
-  /** Default "auto": Parakeet when installed and it covers `language`, else whisper; "heygen" runs on HeyGen. */
+  /** Default "auto": Parakeet when installed and it covers `language`, else whisper. */
   engine?: TranscribeEngine;
-  /** HeyGen only: label each word with its speaker. */
-  speakers?: boolean;
   /** Whisper model. Parakeet has its own fixed model. */
   model?: string;
   language?: string;
@@ -100,7 +97,7 @@ export interface TranscribeOptions {
 export type TranscribeResult =
   | {
       kind: "transcribed";
-      engine: "parakeet" | "whisper" | "heygen";
+      engine: "parakeet" | "whisper";
       model: string;
       detectedLanguage: string | null;
       wordCount: number;
@@ -381,7 +378,7 @@ interface EngineTranscript {
 /** Every engine's words end the same way: normalized, patched into caption scripts, and as a sidecar if asked. */
 function finishTranscript(
   result: EngineTranscript,
-  engine: "parakeet" | "whisper" | "heygen",
+  engine: "parakeet" | "whisper",
   dir: string,
   sidecar: CaptionSidecar | undefined,
 ): TranscribeResult {
@@ -414,26 +411,6 @@ function finishTranscript(
   };
 }
 
-async function transcribeOnHeygen(
-  inputPath: string,
-  dir: string,
-  sidecar: CaptionSidecar | undefined,
-  options: TranscribeRequest,
-): Promise<TranscribeResult> {
-  try {
-    const result = await transcribeWithHeygen(inputPath, join(dir, TRANSCRIPT_FILE), {
-      diarize: options.speakers,
-      onStatus: options.onStatus,
-    });
-    return finishTranscript(result, "heygen", dir, sidecar);
-  } catch (err) {
-    if (err instanceof TranscribeError) throw err;
-    const fix =
-      err instanceof Error && "fix" in err && typeof err.fix === "string" ? ` Fix: ${err.fix}` : "";
-    throw new TranscribeError("failed", `${normalizeErrorMessage(err)}.${fix}`, { cause: err });
-  }
-}
-
 // fallow-ignore-next-line complexity
 async function transcribeAudio(
   inputPath: string,
@@ -442,11 +419,10 @@ async function transcribeAudio(
   options: TranscribeRequest,
 ): Promise<TranscribeResult> {
   const engine = (options.engine ?? "auto").toLowerCase();
-  if (engine === "heygen") return transcribeOnHeygen(inputPath, dir, sidecar, options);
   if (engine !== "auto" && engine !== "parakeet" && engine !== "whisper") {
     throw new TranscribeError(
       "invalid_option",
-      `Unknown --engine: ${options.engine}. Use auto, parakeet, whisper, or heygen.`,
+      `Unknown --engine: ${options.engine}. Use auto, parakeet, or whisper.`,
     );
   }
   const unsupported = sherpaUnsupportedReason();

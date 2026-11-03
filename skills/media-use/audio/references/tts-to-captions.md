@@ -1,23 +1,10 @@
 # TTS → Captions
 
-When no recorded voiceover exists, generate one and obtain word-level caption timing. Two paths depending on which TTS provider is in use:
+When no recorded voiceover exists, generate one and obtain word-level caption timing. Gemini, ElevenLabs and Kokoro supply audio without word data, so transcription supplies the timings:
 
-## Path A — HeyGen (single call, no Whisper)
+## Gemini / ElevenLabs / Kokoro (TTS → transcription)
 
-HeyGen returns word timestamps in the same response as the audio. Use the
-bundled REST helper (the `hyperframes tts` command is Kokoro-only):
-
-```bash
-node skills/media-use/audio/scripts/heygen-tts.mjs \
-  script.txt --output narration.wav --words narration.words.json
-```
-
-`narration.words.json` is already in the `[{ id, text, start, end }]` shape the captions pipeline consumes — no separate transcribe pass.
-
-## Path B — Gemini / ElevenLabs / Kokoro (TTS → transcription)
-
-These adapters supply audio without word data. The shared audio engine runs
-transcription automatically when timings are absent. For Gemini, use the
+The shared audio engine runs transcription automatically when timings are absent. For Gemini, use the
 request in [Text to speech](tts.md#gemini-narration), then consume
 `audio_meta.json` → `voices[].words`.
 

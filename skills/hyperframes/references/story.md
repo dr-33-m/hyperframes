@@ -26,7 +26,7 @@ The storylines are words: build nothing for any of them before one is picked. Pi
 
 Put your recommendation first, with the reason in one clause, and save all three in the project as `STORYLINES.md` so a later turn can switch.
 
-- **The person is there to answer:** show the three and stop once until they pick. A mix ("A's opening with C's middle") is one storyline. Ask nothing else unless only they can answer it (real screens you cannot capture, narrated or music only). State everything else in one assumption line: the length as a range, the aspect, music or voice, and every paid item (a HeyGen voice, an avatar, catalog music) with the free option beside it.
+- **The person is there to answer:** show the three and stop once until they pick. A mix ("A's opening with C's middle") is one storyline. Ask nothing else unless only they can answer it (real screens you cannot capture, narrated or music only). State everything else in one assumption line: the length as a range, the aspect, music or voice, and every paid item (a cloud voice, an avatar, a licensed music track) with the free option beside it.
 - **They asked for the file or for no stops:** take your recommendation, build it, and name the other two in one line each in your reply.
 - With a storyboard (`storyboard.md`), the picked storyline becomes the board's frames.
 

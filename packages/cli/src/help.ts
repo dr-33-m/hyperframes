@@ -26,7 +26,6 @@ const GROUPS: Group[] = [
       ["catalog", "Browse and install blocks and components"],
       ["preview", "Start the studio for previewing compositions"],
       ["present", "Open a slideshow deck in presenter mode (with audience sync)"],
-      ["publish", "Upload a project to a stable URL (private by default)"],
       ["render", "Render a composition to MP4 or WebM"],
       ["open", "Open a project in the HyperFrames desktop app"],
       ["catch-up", "See what was done in the desktop app since you last looked"],
@@ -64,9 +63,6 @@ const GROUPS: Group[] = [
         "measure",
         "Measure a video file: clock, cuts, events, frames, motion, crops, boxes, eases, look",
       ],
-      ["reverse", "Open a reverse-any-video run: note it with HeyGen, then probe the video"],
-      ["billing", "Open the HyperFrames plans or credits page and wait until it is done"],
-      ["templates", "Pull a style template into this project (HyperFrames Pro)"],
       ["info", "Print project metadata"],
       ["compositions", "List all compositions in a project"],
       ["timeline", "Print the project's tracks and clips"],
@@ -90,7 +86,6 @@ const GROUPS: Group[] = [
   {
     title: "Deploy",
     commands: [
-      ["cloud", "Render compositions on HeyGen's cloud (no local Chrome/ffmpeg)"],
       ["lambda", "Deploy and drive distributed renders on AWS Lambda"],
       ["cloudrun", "Deploy and drive distributed renders on Google Cloud Run"],
     ],
@@ -109,15 +104,8 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    title: "Account",
-    commands: [["auth", "Sign in to HeyGen and manage credentials"]],
-  },
-  {
     title: "Settings",
-    commands: [
-      ["feedback", "Submit feedback about your experience"],
-      ["telemetry", "Manage usage telemetry"],
-    ],
+    commands: [["telemetry", "Manage usage telemetry"]],
   },
 ];
 
@@ -127,7 +115,6 @@ import type { Example } from "./commands/_examples.js";
 const ROOT_EXAMPLES: Example[] = [
   ["Create a new project", "hyperframes init my-video"],
   ["Start the live preview studio", "hyperframes preview"],
-  ["Publish to hyperframes.studio", "hyperframes publish"],
   ["Render to MP4", "hyperframes render -o out.mp4"],
   ["Transparent WebM overlay", "hyperframes render --format webm -o out.webm"],
   ["Validate your composition", "hyperframes lint"],

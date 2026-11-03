@@ -1,5 +1,4 @@
 import { isDevMode } from "../utils/env.js";
-import { POSTHOG_API_KEY } from "./posthogKey.js";
 
 export type TelemetryStatusSource =
   | "config"
@@ -38,10 +37,7 @@ export function telemetryRuntimeOverride(): Exclude<TelemetryStatusSource, "conf
   if (isDevMode()) {
     return "dev_mode";
   }
-  if (!POSTHOG_API_KEY.startsWith("phc_")) {
-    return "telemetry_disabled_build";
-  }
-  return null;
+  return "telemetry_disabled_build";
 }
 
 /**

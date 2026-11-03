@@ -22,7 +22,7 @@ import {
 } from "@hyperframes/engine";
 import { errorBox } from "../../ui/format.js";
 import { parseDeliveryFlags } from "../../utils/deliveryFlags.js";
-import { parseEnumFlag } from "../../cloud/parsing.js";
+import { parseEnumFlag } from "../../utils/flagParsing.js";
 import { failUsage } from "../../utils/commandResult.js";
 import { resolveProject } from "../../utils/project.js";
 import {

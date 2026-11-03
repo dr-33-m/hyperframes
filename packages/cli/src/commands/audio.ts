@@ -49,7 +49,7 @@ const CAPABILITIES = new Set<string>([
   "sections",
   "describe",
 ]);
-const QUALITIES = new Set<AnalysisQuality>(["best", "local", "fast"]);
+const QUALITIES = new Set<AnalysisQuality>(["local", "fast"]);
 
 function number(name: string, raw: string | undefined): number | undefined {
   if (raw === undefined) return undefined;
@@ -127,7 +127,7 @@ interface AudioFlags {
 
 function parseQuality(flags: AudioFlags): AnalysisQuality {
   const quality = (flags.quality ?? "local") as AnalysisQuality;
-  if (!QUALITIES.has(quality)) throw new CliUsageError("--quality is local, best or fast");
+  if (!QUALITIES.has(quality)) throw new CliUsageError("--quality is local or fast");
   return quality;
 }
 
@@ -174,20 +174,18 @@ async function clipTargets(flags: AudioFlags, query: FilmQuery | null): Promise<
   return filmTargets(project.dir, timeline, query ?? { by: "all" });
 }
 
-function readQuality(files: string[], flags: AudioFlags): AnalysisQuality {
+function readFile(files: string[], flags: AudioFlags) {
   if (files.length !== 1) throw new CliUsageError("--read reads exactly one file");
   if (flags.element || flags.at || flags["place-at"])
     throw new CliUsageError("--read takes a file and --range, not a film query");
-  return parseQuality(flags);
 }
 
 async function read(files: string[], flags: AudioFlags) {
-  const quality = readQuality(files, flags);
+  readFile(files, flags);
   const range = pair("range", flags.range);
   const result = await readAudio(resolve(process.cwd(), files[0]!), files[0]!, {
     cacheDir: join(resolve(flags.dir ?? process.cwd()), ".hyperframes", "read-audio"),
     transcript: flags.transcript ? resolve(process.cwd(), flags.transcript) : undefined,
-    quality,
   });
   if (flags.json) {
     console.log(JSON.stringify(withMeta(result)));
@@ -224,8 +222,7 @@ export default defineCommand({
     },
     quality: {
       type: "string",
-      description:
-        "local (this machine, the default), best (also uploads to HeyGen's audio services, which may bill your account), fast (signal only)",
+      description: "local (this machine, the default), fast (signal only)",
     },
     provider: { type: "string", description: "Pin capabilities to providers: onsets=signal,..." },
     "onset-method": { type: "string", description: "spectral-flux (default) or energy" },
