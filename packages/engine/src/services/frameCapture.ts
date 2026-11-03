@@ -11,6 +11,7 @@
 import {
   type Browser,
   type CDPSession,
+  type HTTPRequest,
   type Page,
   type Protocol,
   type Viewport,
@@ -2712,6 +2713,27 @@ function recordScriptLoadFailure(session: CaptureSession, url: string): void {
   }
 }
 
+/** Chromium's errorText when the page cancels its own request (a removed frame, a stopped load). */
+const REQUEST_CANCELLED = "net::ERR_ABORTED";
+
+/** A cancelled script was never refused, so it neither counts as a load failure nor starts the fail-fast grace. */
+export function recordFailedRequest(
+  session: CaptureSession,
+  request: Pick<HTTPRequest, "resourceType" | "url" | "method" | "failure">,
+): void {
+  const resourceType = request.resourceType();
+  const url = request.url();
+  const failureText = request.failure()?.errorText ?? "unknown";
+  if (resourceType === "script" && failureText !== REQUEST_CANCELLED) {
+    recordScriptLoadFailure(session, url);
+  }
+  if (shouldIgnoreRequestFailureDiagnostic({ resourceType, url, failureText })) return;
+  appendBrowserDiagnostic(
+    session,
+    formatRequestFailureDiagnostic({ method: request.method(), resourceType, url, failureText }),
+  );
+}
+
 const SCRIPT_ERROR_LABEL = "[HyperFrames] composition script error:";
 
 /** `runtime-error:<first line>` for the error a framework wrapper logs when a composition script throws. */
@@ -2823,24 +2845,7 @@ export async function initializeSession(session: CaptureSession): Promise<void> 
     appendBrowserDiagnostic(session, text);
   });
 
-  page.on("requestfailed", (request) => {
-    const resourceType = request.resourceType();
-    const url = request.url();
-    const failureText = request.failure()?.errorText ?? "unknown";
-    if (resourceType === "script") {
-      recordScriptLoadFailure(session, request.url());
-    }
-    if (shouldIgnoreRequestFailureDiagnostic({ resourceType, url, failureText })) return;
-    appendBrowserDiagnostic(
-      session,
-      formatRequestFailureDiagnostic({
-        method: request.method(),
-        resourceType,
-        url,
-        failureText,
-      }),
-    );
-  });
+  page.on("requestfailed", (request) => recordFailedRequest(session, request));
 
   const projectScripts = new Set<string>();
   page.on("response", (response) => {
